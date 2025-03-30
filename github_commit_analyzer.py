@@ -1,27 +1,28 @@
 import os
 import requests
 from openai import OpenAI
-
-client = OpenAI()
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# GitHub API headers
-HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"}
+# Initialize OpenAI client with minimal configuration
+client = OpenAI(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    base_url="https://api.openai.com/v1"
+)
 
-LastNDays = 7
+# Set up GitHub headers
+HEADERS = {
+    'Authorization': f"Bearer {os.getenv('GITHUB_TOKEN')}",
+    'Accept': 'application/vnd.github.v3+json'
+}
 
 def get_repo_info(github_url):
     """Extracts owner and repo name from GitHub URL."""
-    # Remove 'https://' or 'http://' if present
     github_url = github_url.replace('https://github.com/', '').replace('http://github.com/', '')
-    # Remove any trailing slashes
     github_url = github_url.rstrip('/')
-    # Split the remaining path
     parts = github_url.split('/')
     if not parts[0]:
         raise ValueError("Invalid GitHub URL")
@@ -44,12 +45,12 @@ def get_user_repos(owner):
     
     return [repo['name'] for repo in repos]
 
-def fetch_recent_commits(owner, repo, days=LastNDays):
-    """Fetches commits from the last N days from a GitHub repository."""
+def fetch_recent_commits(owner, repo, days):
+    """Fetches commits from the last {days} days from a GitHub repository."""
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
     # Calculate date from 7 days ago
-    from datetime import datetime, timedelta
     since_date = (datetime.now() - timedelta(days=days)).isoformat()
+    lastNDays = days
     
     response = requests.get(url, headers=HEADERS, params={'since': since_date})
     response.raise_for_status()
@@ -113,7 +114,7 @@ if __name__ == "__main__":
             print(f"Error fetching commits from {repo}: {e}")
     
     if all_commits:
-        print(f"\nAnalyzing {len(all_commits)} commits from the last {LastNDays} days...")
+        print(f"\nAnalyzing {len(all_commits)} commits from the last {lastNDays} days...")
         
         # Update analyze_commits_with_openai function call
         messages = []
@@ -126,4 +127,3 @@ if __name__ == "__main__":
         print("\nAnalysis:\n", analysis)
     else:
         print("\nNo commits found in the last 7 days.")
-
